@@ -1,4 +1,4 @@
-# UC-ITIN1 — Visualize the accommodation itinerary and points of interest on a map
+# UC-ITIN1 — Visualize the accommodation itinerary and points of interest on a map or as a story
 
 ## System context
 
@@ -6,7 +6,7 @@ Standalone read-only SPA inside the **travel-planner** plugin (tab "ITINERARY MA
 
 ## Goal
 
-Let an operator see, at a glance, the sequence of accommodations of a trip plotted on a map and connected in chronological order, together with the points of interest planned for that same trip, so the overall itinerary is visually obvious. When more than one trip ("itinerary") is stored in these tables, let the operator pick which one to view.
+Let an operator see, at a glance, the sequence of accommodations of a trip plotted on a map and connected in chronological order, together with the points of interest planned for that same trip, so the overall itinerary is visually obvious. When more than one trip ("itinerary") is stored in these tables, let the operator pick which one to view. As an alternative to the map, let the operator read the same itinerary as a chronological narrative ("Story"), one stop at a time with its nearby points of interest — useful as a human-readable recap, and a stepping stone toward a future export (Markdown/PDF).
 
 ## Primary Actor
 
@@ -23,7 +23,7 @@ CAMILA WorkTable administrator / developer / trip organizer.
 
 - User is logged into CAMILA WorkTable with access to the travel-planner plugin.
 - A WorkTable table with `short_title` containing "Accomodation(s)" is visible via `GET /tables`, with (at least) columns `property-name`, `city`, `country`, `accommodation-type`, `check-in-date`, `check-out-date`, `latitude`, `longitude`, and optionally `itinerary`.
-- Optionally, a WorkTable table with `short_title` containing "Points of Interest" is visible, with (at least) columns `name`, `city`, `category`, `latitude`, `longitude`, and optionally `itinerary`, `planned-date`, `duration`, `price`, `booking-required`, `kid-friendly`, `priority`, `linked-accommodation`, `description`, `address`, `notes`.
+- Optionally, a WorkTable table with `short_title` containing "Points of Interest" is visible, with (at least) columns `name`, `city`, `category`, `latitude`, `longitude`, and optionally `itinerary`, `planned-date`, `duration`, `booking-required`, `kid-friendly`, `priority`, `linked-accommodation`, `description`, `address`. `price` and `notes` columns may exist on the underlying table but are never read or displayed by this SPA.
 
 ## Postconditions — Success
 
@@ -56,12 +56,23 @@ CAMILA WorkTable administrator / developer / trip organizer.
 2. If `<name>` matches one of the itinerary values loaded in Step 1, it is selected instead of the alphabetically-first one.
 3. If `<name>` does not match any loaded itinerary (stale link, typo, or an itinerary whose records all lack valid coordinates), the normal default (first one alphabetically, or "show everything" if none) applies silently — this is not an error.
 
-### Step 3 — View the itinerary
+### Step 3 — View the itinerary (Map view, default)
 
 1. A map shows one numbered marker per accommodation (numbered in check-in-date order for the selected itinerary) connected by a dashed line.
 2. The same map shows one differently-styled (pin-shaped, green) marker per point of interest for the selected itinerary — these are **not** connected by the route line.
 3. A sidebar lists accommodations ("Stops") and, below them, points of interest, each row showing its key facts.
 4. Clicking a marker's popup, or a sidebar row (either section), centers the map on that item, opens its popup, and highlights its marker; accommodation and point-of-interest highlighting are independent of each other.
+
+### Step 4 — View the itinerary (Story view, alternative)
+
+1. Above the map, a "Map" / "Story" toggle lets the operator switch views; the previously loaded data is reused, no new network request is made.
+2. An overview map (all stops connected in order, plus all points of interest) is shown first, followed by one card per stop in chronological order.
+3. Each stop is labeled with an accommodation icon, its name, and its city/country (with a flag, when recognized) in parentheses; below that: type, check-in/check-out dates, breakfast/parking flags, and booking reference.
+4. Points of interest that belong to that stop (see Extension 4a for the matching rule) are listed nested under it, each with its name, planned date, description, and booking/kid-friendly flags.
+5. Points of interest that don't match any stop are listed in a trailing "Other points of interest" section, rather than being silently omitted.
+6. Next to each stop's card (except the last), a small map shows just that leg: the two consecutive stops and the points of interest assigned to either of them.
+7. A button lets the operator export the whole Story view as a Markdown file, mirroring the same stops/points-of-interest grouping shown on screen (maps are not included in this export — see design.md "Unknowns").
+8. A second button exports the same content as a PDF, this time **including** the overview and per-leg map images.
 
 ## Extensions
 
@@ -71,3 +82,7 @@ CAMILA WorkTable administrator / developer / trip organizer.
 - **1d.** No record at all (either table, for the selected itinerary) has valid coordinates → the map area is not rendered; an empty-state message is shown instead.
 - **2a.** A record has no `check-in-date` (accommodations) or `planned-date` (points of interest) → it sorts after all records that do have one (stable relative order among undated records) within its own table's list.
 - **2b.** A record has no `itinerary` value (or the field doesn't exist in the table at all) while other records do have one → that record is excluded once a specific itinerary is selected, since it doesn't match any itinerary value. If **no** record anywhere has an `itinerary` value, the field is treated as absent entirely and every record is shown regardless.
+- **4a.** A point of interest is assigned to a stop if its `linked-accommodation` value matches that stop's property name (case-insensitive), otherwise if its `planned-date` falls within that stop's check-in/check-out range. A point of interest matching neither rule for any stop appears under "Other points of interest" instead of being dropped.
+- **4b.** A stop has no `check-in-date`/`check-out-date` at all → the date-range matching rule in 4a cannot apply to it; only the `linked-accommodation` name match can assign points of interest to it.
+- **8a.** One or more map images can't be fetched during PDF export (external map service unreachable, slow, or returns an error) → that image is silently omitted; the rest of the PDF (text, other images) still builds and downloads normally. This is not an error state.
+- **8b.** The PDF export fails entirely (e.g. the jsPDF library itself can't be loaded from its CDN) → an inline error message is shown with the underlying reason; the Story view itself is unaffected and Markdown export still works.

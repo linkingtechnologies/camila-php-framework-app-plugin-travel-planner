@@ -2,7 +2,7 @@
 
 ## System context
 
-Landing SPA of the **travel-planner** plugin (tab "Home", dashboard id `m0`, the plugin's default tab). Read-only: lists distinct `itinerary` values from the Accommodations / Points of Interest tables, writes nothing.
+Landing SPA of the **travel-planner** plugin (tab "Home", dashboard id `home`, the plugin's default tab — resolved dynamically by the shared dispatcher as the first `<tab>` in `conf/menu.xml`, not hardcoded). Read-only: lists distinct `itinerary` values from the Accommodations / Points of Interest tables, writes nothing.
 
 ## Goal
 

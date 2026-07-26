@@ -21,6 +21,13 @@
  *   Simple liveness check. Returns: {status: "ok"}
  *
  * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * A GET /tile OSM tile proxy+cache lived here briefly, for the PDF export's map
+ * images. Removed along with the hand-rolled canvas tile-stitcher it fed: the PDF
+ * export now uses OpenLayers (see app-itinerary-map.js's renderStaticMapDataUrl()),
+ * which fetches tiles directly from the browser via tile.openstreetmap.org — the
+ * same confirmed-CORS-enabled host the live Leaflet map already uses directly, no
+ * server involvement needed.
  */
 
 return [
