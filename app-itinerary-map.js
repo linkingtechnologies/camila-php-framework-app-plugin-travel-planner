@@ -981,7 +981,23 @@ async function buildPdf() {
       if (!dataUrl) return;
       ensureSpace(heightMm + 8);
       doc.addImage(dataUrl, "PNG", margin, y, contentWidth, heightMm);
-      y += heightMm + 8;
+      // OSM's tile usage policy requires visible attribution wherever the tiles are displayed,
+      // printed pages included — the live map gets this "for free" from Leaflet's attribution
+      // control, but renderStaticMapDataUrl() disables OL's own control (`controls: []`, so it
+      // doesn't end up baked into the composited PNG at some arbitrary corner/size) and nothing
+      // was drawing a replacement, so exported map images had no attribution at all. Fixed with
+      // a small caption line under every map image (overview and leg maps alike, since both go
+      // through this same function). doc.text()'s y is the text BASELINE, not its top — 1mm was
+      // too little room for a 6pt font's ascenders (they poked up into the image); 4mm cleared
+      // it but left a visibly oversized gap (also found in the field). 2.5mm is the middle
+      // ground: still clears the ascenders, without the empty band.
+      y += heightMm + 2.5;
+      doc.setFontSize(6);
+      doc.setFont(undefined, "normal");
+      doc.setTextColor(120);
+      doc.text("© OpenStreetMap contributors", pageWidth - margin, y, { align: "right" });
+      doc.setTextColor(0);
+      y += 4;
     } catch {
       // Map image unavailable — the rest of the PDF (text) still builds normally.
     }
@@ -1023,10 +1039,6 @@ async function buildPdf() {
   const poiParts = (poi) => {
     const parts = [{ text: `${poiNumberByRef.get(poi)}. ${poi.name || poi.city || "—"}${poi["planned-date"] ? ` (${poi["planned-date"]})` : ""}`, size: 10 }];
     if (poi.description) parts.push({ text: poi.description, size: 9 });
-    const flags = [];
-    if (isTruthyFlag(poi["booking-required"])) flags.push(t("itin.poi.popup.bookingRequired"));
-    if (isTruthyFlag(poi["kid-friendly"])) flags.push(t("itin.poi.popup.kidFriendly"));
-    if (flags.length) parts.push({ text: flags.join(" · "), size: 9 });
     parts[parts.length - 1].gap = 5;
     return parts;
   };
