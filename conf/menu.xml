@@ -1,0 +1,8 @@
+<?xml version='1.0' standalone='yes'?>
+<menu>
+ <tab>
+  <id>itinerary-map</id>
+  <title>Itinerary Map</title>
+  <url>?dashboard=itinerary-map</url>
+ </tab>
+</menu>
