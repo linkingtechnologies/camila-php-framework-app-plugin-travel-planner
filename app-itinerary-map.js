@@ -813,7 +813,13 @@ async function renderStaticMapDataUrl(markers, routePoints, widthPx, heightPx, s
 
     if (routePoints.length > 1) {
       const line = new ol.Feature({ geometry: new ol.geom.LineString(routePoints.map(toXY)) });
+      // zIndex 1.5: above every POI marker (1.x, see below) but below stop markers (2). Without
+      // this the line defaulted to zIndex 0 — below everything — so whenever a POI happened to
+      // sit right on (or very near) the route between two stops, the line vanished behind that
+      // POI's circle instead of visibly passing through/behind it, making the line look like it
+      // connected to the (green) POI rather than continuing on to the (blue) stop.
       line.setStyle(new ol.style.Style({
+        zIndex: 1.5,
         stroke: new ol.style.Stroke({ color: "#3273dc", width: 1 * scale, lineDash: [3 * scale, 3 * scale] }),
       }));
       features.push(line);
@@ -833,11 +839,11 @@ async function renderStaticMapDataUrl(markers, routePoints, widthPx, heightPx, s
         image: new ol.style.Circle({
           radius: 2.5 * scale,
           fill: new ol.style.Fill({ color: m.color }),
-          stroke: new ol.style.Stroke({ color: "#fff", width: 0.75 * scale }),
+          stroke: new ol.style.Stroke({ color: "#fff", width: 0.4 * scale }),
         }),
         text: m.number == null ? undefined : new ol.style.Text({
           text: String(m.number),
-          font: `bold ${4 * scale}px sans-serif`,
+          font: `bold ${3 * scale}px sans-serif`,
           fill: new ol.style.Fill({ color: "#fff" }),
         }),
       }));
@@ -962,28 +968,27 @@ async function buildPdf() {
 
   // Best-effort: render the tile-stitched map image and place it, silently skipping on any
   // failure (e.g. all tile requests failing) rather than aborting the whole export. Map images
-  // deliberately bleed to the full page width (0 to pageWidth), unlike every text element in
-  // this document (which stays within margin/contentWidth) — more width means bigger, less
-  // crowded markers, which matters more for legibility here than a consistent side margin does.
+  // are sized/placed within the same margin/contentWidth every text element uses, so the page
+  // has a consistent side margin throughout.
   async function addMapImage(markers, routePoints, heightMm) {
     if (markers.length === 0 && routePoints.length === 0) return;
     try {
       const dataUrl = await renderStaticMapDataUrl(
         markers, routePoints,
-        Math.round(pageWidth * MAP_PX_PER_MM), Math.round(heightMm * MAP_PX_PER_MM),
+        Math.round(contentWidth * MAP_PX_PER_MM), Math.round(heightMm * MAP_PX_PER_MM),
         MAP_OVERSAMPLE
       );
       if (!dataUrl) return;
-      ensureSpace(heightMm + 4);
-      doc.addImage(dataUrl, "PNG", 0, y, pageWidth, heightMm);
-      y += heightMm + 4;
+      ensureSpace(heightMm + 8);
+      doc.addImage(dataUrl, "PNG", margin, y, contentWidth, heightMm);
+      y += heightMm + 8;
     } catch {
       // Map image unavailable — the rest of the PDF (text) still builds normally.
     }
   }
 
   addText(state.selectedItinerary || t("itin.selector.label"), { size: 18, bold: true, gap: 8 });
-  y += 2;
+  y += 6;
 
   // Stable POI numbering (position in state.pois, already sorted by planned-date), shared by
   // every map image and the text below — the same POI always shows the same number wherever it
@@ -1007,7 +1012,7 @@ async function buildPdf() {
       // an isolated two-marker overlap test showed 0 leaked pixels from the covered marker's
       // text) — the fix here is just making sure POI-vs-POI comparisons have a real, stable
       // winner instead of tying at 1 for every POI.
-      ...state.pois.map(p => ({ lat: p.__lat, lng: p.__lng, color: "#48c78e", number: poiNumberByRef.get(p), zIndex: 1 + poiNumberByRef.get(p) / 1000 })),
+      ...state.pois.map(p => ({ lat: p.__lat, lng: p.__lng, color: "#48c78e", number: poiNumberByRef.get(p), zIndex: 1 + poiNumberByRef.get(p) / 100000 })),
     ],
     state.stops.length > 1 ? state.stops.map(s => ({ lat: s.__lat, lng: s.__lng })) : [],
     70
@@ -1017,7 +1022,12 @@ async function buildPdf() {
 
   const poiParts = (poi) => {
     const parts = [{ text: `${poiNumberByRef.get(poi)}. ${poi.name || poi.city || "—"}${poi["planned-date"] ? ` (${poi["planned-date"]})` : ""}`, size: 10 }];
-    if (poi.description) parts.push({ text: poi.description, size: 9, gap: 5 });
+    if (poi.description) parts.push({ text: poi.description, size: 9 });
+    const flags = [];
+    if (isTruthyFlag(poi["booking-required"])) flags.push(t("itin.poi.popup.bookingRequired"));
+    if (isTruthyFlag(poi["kid-friendly"])) flags.push(t("itin.poi.popup.kidFriendly"));
+    if (flags.length) parts.push({ text: flags.join(" · "), size: 9 });
+    parts[parts.length - 1].gap = 5;
     return parts;
   };
 
@@ -1045,9 +1055,20 @@ async function buildPdf() {
       parts.push({ text: `${t("itin.popup.booking")}: ${[stop["booking-platform"], stop["booking-reference"]].filter(Boolean).join(" — ")}` });
     }
 
-    pois.forEach(poi => parts.push(...poiParts(poi)));
-
+    // Only the heading + its immediate details are measured/moved as one "keep together" unit
+    // (drawParts) — deliberately *not* the nested POI list appended after it. A stop with many
+    // POIs assigned to it (that data-driven, so unbounded) made the whole block, POIs included,
+    // exceed a full page's remaining space and get bumped to a fresh page wholesale — leaving
+    // most of the *previous* page blank, found in the field on a real export. Only the short,
+    // bounded part (heading/type/dates/address/flags/booking) needs the stranding guard from
+    // drawParts()'s original fix; each POI entry already gets its own ensureSpace() via addText()
+    // and can flow across a page break on its own without looking like a stranded heading.
     drawParts(parts);
+    // drawParts() per POI (not addText() per part): each POI's title+description is a small,
+    // bounded unit (at most 2 parts) that should never be split by a page break — unlike the
+    // stop's own heading+POI-list bug fixed earlier, this doesn't reintroduce that problem
+    // because it's scoped to one POI at a time, not the unbounded list of all of them together.
+    pois.forEach(poi => drawParts(poiParts(poi)));
     y += 2;
 
     if (i < groups.length - 1) {
@@ -1056,7 +1077,7 @@ async function buildPdf() {
         [
           { lat: stop.__lat, lng: stop.__lng, color: "#3273dc", number: i + 1, zIndex: 2 },
           { lat: to.__lat, lng: to.__lng, color: "#3273dc", number: i + 2, zIndex: 2 },
-          ...[...pois, ...groups[i + 1].pois].map(p => ({ lat: p.__lat, lng: p.__lng, color: "#48c78e", number: poiNumberByRef.get(p), zIndex: 1 + poiNumberByRef.get(p) / 1000 })),
+          ...[...pois, ...groups[i + 1].pois].map(p => ({ lat: p.__lat, lng: p.__lng, color: "#48c78e", number: poiNumberByRef.get(p), zIndex: 1 + poiNumberByRef.get(p) / 100000 })),
         ],
         [{ lat: stop.__lat, lng: stop.__lng }, { lat: to.__lat, lng: to.__lng }],
         55
@@ -1068,7 +1089,7 @@ async function buildPdf() {
   if (leftoverPois.length > 0) {
     const heading = { text: t("itin.story.otherPois"), size: 13, bold: true, gap: 7 };
     drawParts([heading, ...poiParts(leftoverPois[0])]);
-    leftoverPois.slice(1).forEach(poi => poiParts(poi).forEach(p => addText(p.text, p)));
+    leftoverPois.slice(1).forEach(poi => drawParts(poiParts(poi)));
   }
 
   return doc;

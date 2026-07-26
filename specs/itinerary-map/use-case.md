@@ -67,7 +67,7 @@ CAMILA WorkTable administrator / developer / trip organizer.
 
 1. Above the map, a "Map" / "Story" toggle lets the operator switch views; the previously loaded data is reused, no new network request is made.
 2. An overview map (all stops connected in order, plus all points of interest) is shown first, followed by one card per stop in chronological order.
-3. Each stop is labeled with an accommodation icon, its name, and its city/country (with a flag, when recognized) in parentheses; below that: type, check-in/check-out dates, breakfast/parking flags, and booking reference.
+3. Each stop is labeled with its city/country (with a flag, when recognized) first, then the accommodation icon and name on the line below; under that: type, check-in/check-out dates, breakfast/parking flags, and booking reference.
 4. Points of interest that belong to that stop (see Extension 4a for the matching rule) are listed nested under it, each with its name, planned date, description, and booking/kid-friendly flags.
 5. Points of interest that don't match any stop are listed in a trailing "Other points of interest" section, rather than being silently omitted.
 6. Next to each stop's card (except the last), a small map shows just that leg: the two consecutive stops and the points of interest assigned to either of them.
