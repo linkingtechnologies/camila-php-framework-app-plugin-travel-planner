@@ -33,7 +33,7 @@ tr.is-readonly input {
   cursor: not-allowed;
 }
 
-/* === Smaller SPA typography (ai-toolbox plugin) === */
+/* === Smaller SPA typography (travel-planner plugin) === */
 #app {
   font-size: 0.85rem;
 }

@@ -8,9 +8,7 @@ if (typeof WorkTableClient !== "function") {
   throw Error("WorkTableClient not available");
 }
 
-// Unused here (this view is pure display of server-injected config), kept for
-// consistency with the SPA entry point contract in AGENTS.md.
-WorkTableClient(window.APP_CONFIG || {});
+const client = WorkTableClient(window.APP_CONFIG || {});
 
 const t = (key, ...args) => {
   let s = window.I18N?.[key] ?? key;
@@ -18,48 +16,73 @@ const t = (key, ...args) => {
   return s;
 };
 
+// ── Helpers (same resolution rules as app-itinerary-map.js) ────────────────
+
+function getRecords(res) {
+  if (Array.isArray(res)) return res;
+  if (res && Array.isArray(res.records)) return res.records;
+  return [];
+}
+
+function resolveTableFromList(tables, regex) {
+  const found = tables.find(tbl => regex.test(tbl.short_title || "") || regex.test(tbl.name || ""));
+  return found?.name ?? null;
+}
+
 const state = {
-  mcpUrl:     window.APP_CONFIG?.mcpDefaultUrl || "",
-  copyStatus: null, // null | 'copied' | 'error'
+  loading:     true,
+  itineraries: [],  // distinct, sorted, non-empty "itinerary" values across Accommodations + POI tables
 };
 
-let copyStatusTimer = null;
+// ── Itineraries summary (non-blocking: empty list on any failure) ─────────
 
-async function copyMcpUrl() {
-  clearTimeout(copyStatusTimer);
+async function loadItineraries() {
   try {
-    await navigator.clipboard.writeText(state.mcpUrl);
-    state.copyStatus = "copied";
+    const tablesRes = await client.tables({ metadata: "1" });
+    const tables = Array.isArray(tablesRes?.tables) ? tablesRes.tables : [];
+
+    const accTableName = resolveTableFromList(tables, /accom+odation/i);
+    const poiTableName = resolveTableFromList(tables, /points?[\s-]*of[\s-]*interest/i);
+
+    const itinerarySet = new Set();
+    for (const tableName of [accTableName, poiTableName]) {
+      if (!tableName) continue;
+      const res = await client.table(tableName).distinct("itinerary");
+      for (const r of getRecords(res)) {
+        const v = String(r.itinerary ?? "").trim();
+        if (v) itinerarySet.add(v);
+      }
+    }
+
+    state.itineraries = [...itinerarySet].sort((a, b) => a.localeCompare(b));
   } catch {
-    state.copyStatus = "error";
+    state.itineraries = []; // non-blocking: falls through to the empty state
   }
+  state.loading = false;
   mount();
-  copyStatusTimer = setTimeout(() => {
-    state.copyStatus = null;
-    mount();
-  }, 2000);
 }
 
 function App() {
   return html`
     <div class="container pt-0 pb-4">
-        <div class="box spa-title-box">
-          <label class="label">${t("home.mcpEndpoint.label")}</label>
-          <div class="field has-addons">
-            <div class="control is-expanded">
-              <input class="input" type="text" readonly .value=${state.mcpUrl} @click=${e => e.target.select()} />
-            </div>
-            <div class="control">
-              <button class="button is-primary" @click=${copyMcpUrl}>
-                <span class="icon"><i class="ri-clipboard-line"></i></span>
-                <span>${t("home.mcpEndpoint.btn.copy")}</span>
-              </button>
-            </div>
+      <div class="box spa-title-box">
+        <h4 class="title is-6 mb-3">${t("home.itineraries.title")}</h4>
+
+        ${state.loading ? html`<progress class="progress is-small is-primary" style="max-width:300px"></progress>` : ""}
+
+        ${!state.loading && state.itineraries.length === 0 ? html`
+          <p class="has-text-grey">${t("home.itineraries.empty")}</p>
+        ` : ""}
+
+        ${!state.loading && state.itineraries.length > 0 ? html`
+          <div class="tags">
+            ${state.itineraries.map(name => html`
+              <a class="tag is-link is-light mb-0" href=${"?dashboard=itinerary-map&itinerary=" + encodeURIComponent(name)}>${name}</a>
+            `)}
           </div>
-          ${state.copyStatus === "copied" ? html`<p class="help is-success">${t("home.mcpEndpoint.copied")}</p>` : ""}
-          ${state.copyStatus === "error" ? html`<p class="help is-danger">${t("home.mcpEndpoint.copyError")}</p>` : ""}
-        </div>
+        ` : ""}
       </div>
+    </div>
   `;
 }
 
@@ -68,3 +91,4 @@ function mount() {
 }
 
 mount();
+loadItineraries();

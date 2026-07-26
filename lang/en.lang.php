@@ -1,4 +1,7 @@
-// English — ai-toolbox plugin
+// English — travel-planner plugin
+home.itineraries.title = Itineraries
+home.itineraries.empty = No itineraries found.
+
 itin.error.tableNotFound = Could not find the "Accomodations" table via client.tables().
 itin.error.load = Failed to load accommodations: %s
 itin.btn.retry = Retry

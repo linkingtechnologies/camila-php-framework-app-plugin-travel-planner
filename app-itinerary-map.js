@@ -59,12 +59,17 @@ function resolveTableFromList(tables, regex) {
 
 // ── State ──────────────────────────────────────────────────────────────────
 
+// Optional deep link from the Home tab's itineraries list (?dashboard=itinerary-map&itinerary=...).
+// If it doesn't match any itinerary actually loaded, the normal fallback in loadAll() (first
+// itinerary alphabetically) applies — same as if nothing had been requested.
+const requestedItinerary = new URLSearchParams(location.search).get("itinerary") || "";
+
 const state = {
   loading:            true,
   error:              null,   // string | null
 
   itineraries:        [],     // distinct, sorted, non-empty "itinerary" values across both tables
-  selectedItinerary:  "",     // "" = no itinerary field present anywhere (show everything)
+  selectedItinerary:  requestedItinerary,  // "" = no itinerary field present anywhere (show everything)
 
   allAccommodations:  [],     // all accommodation records with valid coords (any itinerary)
   allPois:            [],     // all points-of-interest records with valid coords (any itinerary)

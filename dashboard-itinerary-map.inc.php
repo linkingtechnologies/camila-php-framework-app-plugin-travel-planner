@@ -1,5 +1,5 @@
 <?php
-// Itinerary Map dashboard — ai-toolbox plugin
+// Itinerary Map dashboard — travel-planner plugin
 // Manual mount pattern (see AGENTS.md): APP_CONFIG / I18N must be injected before the module loads.
 // NOTE: local translations array must NOT be named $i18n (see AGENTS.md "Naming warning" —
 // this file is require()'d at global scope and would overwrite camila's own global $i18n).
@@ -74,7 +74,7 @@ $html = <<<HTML
 HTML;
 
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, $html));
-$_CAMILA['page']->camila_add_js("<link href=\"plugins/ai-toolbox/app.css\" rel=\"stylesheet\">\n");
+$_CAMILA['page']->camila_add_js("<link href=\"plugins/travel-planner/app.css\" rel=\"stylesheet\">\n");
 $itinScriptVersion = @filemtime(__DIR__ . '/app-itinerary-map.js');
 $itinVerSuffix     = $itinScriptVersion ? ('?v=' . $itinScriptVersion) : '';
-$_CAMILA['page']->camila_add_js('<script type="module" src="./plugins/ai-toolbox/app-itinerary-map.js' . $itinVerSuffix . '"></script>');
+$_CAMILA['page']->camila_add_js('<script type="module" src="./plugins/travel-planner/app-itinerary-map.js' . $itinVerSuffix . '"></script>');

@@ -1,4 +1,7 @@
-// Italiano — plugin ai-toolbox
+// Italiano — plugin travel-planner
+
+home.itineraries.title = Itinerari
+home.itineraries.empty = Nessun itinerario trovato.
 
 itin.error.tableNotFound = Impossibile trovare la tabella "Accomodations" tramite client.tables().
 itin.error.load = Caricamento alloggi fallito: %s

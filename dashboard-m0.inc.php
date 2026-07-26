@@ -1,5 +1,5 @@
 <?php
-// Home dashboard — ai-toolbox plugin
+// Home dashboard — travel-planner plugin
 // Manual mount pattern (see AGENTS.md): APP_CONFIG / I18N must be injected before the module loads.
 // NOTE: local translations array must NOT be named $i18n (see AGENTS.md "Naming warning" —
 // this file is require()'d at global scope and would overwrite camila's own global $i18n).
@@ -28,15 +28,12 @@ $config   = [
     'baseUrl'           => $scheme . '://' . $host . '/app/' . CAMILA_APP_DIR . '/cf_api.php',
     'apiKeyHeaderName'  => 'Authorization',
     'apiKeyHeaderValue' => 'PHPSESSID',
-    'mcpDefaultUrl'     => $scheme . '://' . $host . '/app/' . CAMILA_APP_DIR . '/cf_api.php?mcp=1',
 ];
 
 $lang       = ai_load_lang(__DIR__ . '/lang', $_CAMILA['lang'] ?? 'en');
 $pluginI18n = [
-    'home.mcpEndpoint.label'      => $lang['home.mcpEndpoint.label'] ?? '',
-    'home.mcpEndpoint.btn.copy'   => $lang['home.mcpEndpoint.btn.copy'] ?? '',
-    'home.mcpEndpoint.copied'     => $lang['home.mcpEndpoint.copied'] ?? '',
-    'home.mcpEndpoint.copyError'  => $lang['home.mcpEndpoint.copyError'] ?? '',
+    'home.itineraries.title'      => $lang['home.itineraries.title'] ?? '',
+    'home.itineraries.empty'      => $lang['home.itineraries.empty'] ?? '',
 ];
 
 $refrCode  = "<script src='../../camila/js/worktable-client.js'></script>";
@@ -56,7 +53,7 @@ $html = <<<HTML
 HTML;
 
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, $html));
-$_CAMILA['page']->camila_add_js("<link href=\"plugins/ai-toolbox/app.css\" rel=\"stylesheet\">\n");
+$_CAMILA['page']->camila_add_js("<link href=\"plugins/travel-planner/app.css\" rel=\"stylesheet\">\n");
 $homeScriptVersion = @filemtime(__DIR__ . '/app-home.js');
 $homeVerSuffix     = $homeScriptVersion ? ('?v=' . $homeScriptVersion) : '';
-$_CAMILA['page']->camila_add_js('<script type="module" src="./plugins/ai-toolbox/app-home.js' . $homeVerSuffix . '"></script>');
+$_CAMILA['page']->camila_add_js('<script type="module" src="./plugins/travel-planner/app-home.js' . $homeVerSuffix . '"></script>');
